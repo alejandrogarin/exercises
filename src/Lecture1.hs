@@ -86,14 +86,8 @@ function.
 -}
 minmax :: Int -> Int -> Int -> Int
 minmax x y z =
-  let max'
-        | x > y && x > z = x
-        | y > z = y
-        | otherwise = z
-      min'
-        | x < y && x < z = x
-        | y < z = y
-        | otherwise = z
+  let max' = max z (max x y)
+      min' = min z (min x y)
   in max' - min'
 
 {- | Implement a function that takes a string, start and end positions
@@ -113,9 +107,9 @@ string.
 -}
 subString :: Int -> Int -> String -> String
 subString start end str
-  | start < 0 && end < 0 = ""
+  | end < 0 = ""
   | otherwise = take wantedCharacters . drop ignoredCharacters $ str
-  where ignoredCharacters = if start < 0 then 0 else start
+  where ignoredCharacters = max 0 start
         wantedCharacters = end - ignoredCharacters + 1
 
 {- | Write a function that takes a String — space separated numbers,
@@ -148,7 +142,7 @@ lowerAndGreater n list = show n ++
   ++ " elements and lower than "
   ++ show greater
   ++  " elements"
-  where go ::[Int] -> (Int, Int) -> (Int, Int)
+  where go :: [Int] -> (Int, Int) -> (Int, Int)
         go [] tuple = tuple
         go (x:xs) tuple
           | x == n = go xs tuple
