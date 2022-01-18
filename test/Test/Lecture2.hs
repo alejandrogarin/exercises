@@ -9,8 +9,11 @@ import GHC.Stack (HasCallStack)
 import Test.Hspec (Expectation, Spec, describe, it, shouldBe, shouldSatisfy)
 import Test.Hspec.Hedgehog (assert, forAll, hedgehog, (===))
 
-import Lecture2 (EvalError (..), Expr (..), constantFolding, dropSpaces, duplicate, eval, evenLists,
-                 isIncreasing, lazyProduct, merge, mergeSort, removeAt)
+import Lecture2 (Attack (..), Chest (..), Dragon (..), Endurance (..), EvalError (..),
+                 EvilDragon (..), Expr (..), FightResult (..), FirePower (..), Gold (..),
+                 Health (..), Knight (..), Reward (..), Treasure (..), XP (..), constantFolding,
+                 dragonFight, dropSpaces, duplicate, eval, evenLists, isIncreasing, lazyProduct,
+                 merge, mergeSort, removeAt)
 
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
@@ -20,6 +23,30 @@ lecture2Spec :: Spec
 lecture2Spec = describe "Lecture 2" $ do
     lecture2Normal
     lecture2Hard
+    lecture2DragonFight
+
+lecture2DragonFight :: Spec
+lecture2DragonFight = describe "dragonFight" $ do
+    let strongKnight = Knight (Health 250) (Attack 100) (Endurance 20)
+    let weakKnight = Knight (Health 10) (Attack 1) (Endurance 20)
+    let lowEnduranceKnight = Knight (Health 10) (Attack 1) (Endurance 5)
+    describe "a fight against a Green dragon" $ do
+        let dragon = Green (Dragon (Health 500) (FirePower 100)) (Gold 1000)
+        it "Knight wins and take the reward" $ dragonFight strongKnight dragon       `shouldBe` Right (KnightWin (Reward (Gold 1000) Nothing (XP 250)))
+        it "Knight runs away"                $ dragonFight lowEnduranceKnight dragon `shouldBe` Right KnightRunAway
+        it "Knight dies"                     $ dragonFight weakKnight dragon         `shouldBe` Right KnightDie
+
+    describe "a fight against a Black dragon" $ do
+        let dragon = Black (Dragon (Health 500) (FirePower 100)) (Chest (Gold 1000) (Just Gems))
+        it "Knight wins and take the reward" $ dragonFight strongKnight dragon       `shouldBe` Right (KnightWin (Reward (Gold 1000) (Just Gems) (XP 150)))
+        it "Knight runs away"                $ dragonFight lowEnduranceKnight dragon `shouldBe` Right KnightRunAway
+        it "Knight dies"                     $ dragonFight weakKnight dragon         `shouldBe` Right KnightDie
+
+    describe "a fight against a Red dragon" $ do
+        let dragon = Red (Dragon (Health 500) (FirePower 100)) (Chest (Gold 1000) (Just Jewels))
+        it "Knight wins and take the reward" $ dragonFight strongKnight dragon       `shouldBe` Right (KnightWin (Reward (Gold 1000) (Just Jewels) (XP 100)))
+        it "Knight runs away"                $ dragonFight lowEnduranceKnight dragon `shouldBe` Right KnightRunAway
+        it "Knight dies"                     $ dragonFight weakKnight dragon         `shouldBe` Right KnightDie
 
 lecture2Normal :: Spec
 lecture2Normal = describe "Normal" $ do
