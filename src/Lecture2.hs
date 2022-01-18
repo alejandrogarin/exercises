@@ -81,7 +81,7 @@ lazyProduct list = go list 1
 duplicate :: [a] -> [a]
 duplicate list = go list []
   where go [] acc      = acc
-        go (x: xs) acc = go xs (acc ++ [x, x])
+        go (x: xs) acc = x : x : go xs acc
 
 {- | Implement function that takes index and a list and removes the
 element at the given position. Additionally, this function should also
