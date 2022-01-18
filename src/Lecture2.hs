@@ -329,7 +329,7 @@ True
 -}
 isIncreasing :: [Int] -> Bool
 isIncreasing [] = True
-isIncreasing list = go (head list) (drop 1 list)
+isIncreasing (first : rest) = go first rest
   where go :: Int -> [Int] -> Bool
         go _ []       = True
         go n (x : xs) = (n <= x) && go x xs
