@@ -220,36 +220,29 @@ newtype FirePower = FirePower Int deriving (Show, Eq)
 
 newtype XP = XP Int deriving (Show, Eq)
 
-newtype Error = Error String deriving (Show, Eq)
-
-dragonFight :: Knight -> EvilDragon -> Either Error FightResult
-dragonFight knight evilDragon = evaluateResult (snd fightResult) (fst fightResult)
-    where go :: Int -> Knight -> EvilDragon -> (Knight, EvilDragon)
-          go strikeNumber knight' dragon
-            | isFightFinished evilDragon knight' = (knight', dragon)
-            | strikeNumber > maxStrikesInRound   = go 1 (damageKnight dragon knight') dragon
-            | otherwise                          = go (strikeNumber + 1) (reduceEndurance knight') (damageDragon knight' dragon)
-          fightResult :: (Knight, EvilDragon)
-          fightResult = go 1 knight evilDragon
+dragonFight :: Knight -> EvilDragon -> FightResult
+dragonFight = go 1
+    where go :: Int -> Knight -> EvilDragon -> FightResult
+          go strikeNumber knight dragon
+            | strikeNumber > maxStrikesInRound   = go 1 (damageKnight dragon knight) dragon
+            | getDragonHealth dragon <= 0        = KnightWin $ createReward dragon
+            | getKnightEndurance knight <= 0     = KnightRunAway
+            | getKnightHealth knight <= 0        = KnightDie
+            | otherwise                          = go (strikeNumber + 1) (reduceEndurance knight) (damageDragon knight dragon)
 
 maxStrikesInRound :: Int
 maxStrikesInRound = 10
 
-evaluateResult :: EvilDragon -> Knight -> Either Error FightResult
-evaluateResult evilDragon knight
-  | isDead (dragonHealth dragon) = Right $ KnightWin $ createReward evilDragon
-  | isEnduranceEmpty (knightEndurance knight) = Right KnightRunAway
-  | isDead (knightHealth knight) = Right KnightDie
-  | otherwise = Left $ Error "something went wrong :("
-  where dragon = extractDragon evilDragon
+getDragonHealth :: EvilDragon -> Int
+getDragonHealth (Green (Dragon (Health h) _) _) = h
+getDragonHealth (Red (Dragon (Health h) _) _)   = h
+getDragonHealth (Black (Dragon (Health h) _) _) = h
 
-isFightFinished :: EvilDragon -> Knight -> Bool
-isFightFinished dragon knight = isDead (knightHealth knight)
-                             || isDead (dragonHealth (extractDragon dragon))
-                             || isEnduranceEmpty (knightEndurance knight)
+getKnightHealth :: Knight -> Int
+getKnightHealth (Knight (Health h) _ _) = h
 
-isDead :: Health -> Bool
-isDead (Health h) = h <= 0
+getKnightEndurance :: Knight -> Int
+getKnightEndurance (Knight _ _ (Endurance e)) = e
 
 damageKnight :: EvilDragon -> Knight -> Knight
 damageKnight dragon knight = knight {knightHealth = reduceHealthByFirePower (knightHealth knight) (dragonFirePower (extractDragon dragon))}
@@ -288,19 +281,11 @@ extractXP (Green _ _) = XP 250
 extractXP (Black _ _) = XP 150
 extractXP (Red _ _)   = XP 100
 
-isEnduranceEmpty :: Endurance -> Bool
-isEnduranceEmpty (Endurance e) = e <= 0
-
 reduceHealthByFirePower :: Health -> FirePower -> Health
 reduceHealthByFirePower (Health h) (FirePower fp) = Health (h - fp)
 
 reduceHealthByAttack :: Health -> Attack -> Health
 reduceHealthByAttack (Health h) (Attack a) = Health (h - a)
-
--- Q1: What is supposed to do to avoid part of this boilerplate functions? Optics?
-
--- Q2: I see Haskell provides a way to create a copy of your product type by just changing only 1 property (Record syntax)
---     What is supposed to do with sum types? I didn't see a dual version for it
 
 ----------------------------------------------------------------------------
 -- Challenges
