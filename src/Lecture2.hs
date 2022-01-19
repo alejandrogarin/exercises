@@ -210,7 +210,7 @@ data FightResult = KnightWin Reward | KnightDie | KnightRunAway deriving (Show, 
 
 newtype Gold = Gold Int deriving (Show, Eq)
 
-newtype Health = Health Int deriving (Show, Eq)
+newtype Health = Health { unHealth :: Int } deriving (Show, Eq)
 
 newtype Attack = Attack Int deriving (Show, Eq)
 
@@ -234,9 +234,7 @@ maxStrikesInRound :: Int
 maxStrikesInRound = 10
 
 getDragonHealth :: EvilDragon -> Int
-getDragonHealth (Green (Dragon (Health h) _) _) = h
-getDragonHealth (Red (Dragon (Health h) _) _)   = h
-getDragonHealth (Black (Dragon (Health h) _) _) = h
+getDragonHealth = unHealth . dragonHealth  . extractDragon
 
 getKnightHealth :: Knight -> Int
 getKnightHealth (Knight (Health h) _ _) = h
