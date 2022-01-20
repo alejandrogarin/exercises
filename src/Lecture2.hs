@@ -94,16 +94,12 @@ return the removed element.
 (Nothing,[1,2,3,4,5])
 -}
 removeAt :: Int -> [a] -> (Maybe a, [a])
-removeAt index list =
-  if index < 0 || index >= length list
-  then (Nothing, list)
-  else  go 0 list []
+removeAt index list = go 0 list []
   where go :: Int -> [a] -> [a] -> (Maybe a, [a])
-        go _ [] acc = (Nothing, acc)
-        go currentIndex (x : xs) acc =
-          if currentIndex == index
-          then (Just x, reverse acc ++ xs)
-          else go (currentIndex + 1) xs (x : acc)
+        go _ [] acc                  = (Nothing, acc)
+        go currentIndex (x : xs) acc = if currentIndex == index
+          then (Just x, acc ++ xs)
+          else go (currentIndex + 1) xs (acc ++ [x])
 
 {- | Write a function that takes a list of lists and returns only
 lists of even lengths.
