@@ -124,7 +124,7 @@ spaces.
 🕯 HINT: look into Data.Char and Prelude modules for functions you may use.
 -}
 dropSpaces :: String -> String
-dropSpaces = filter (not . isSpace)
+dropSpaces = takeWhile (not . isSpace) . dropWhile isSpace
 
 {- |
 
@@ -141,6 +141,9 @@ As a reward, the knight can take the treasure chest.
 Below is the description of the fight and character specifications:
 
   * A chest contains a non-zero amount of gold and a possible treasure.
+    When defining the type of a treasure chest, you don't know what
+    treasures it stores insight, so your chest data type must be able
+    to contain any possible treasure.
   * As a reward, knight takes all the gold, the treasure and experience.
   * Experience is calculated based on the dragon type. A dragon can be
     either red, black or green.
