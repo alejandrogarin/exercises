@@ -26,6 +26,18 @@ module Lecture2
     , dropSpaces
 
     , Knight (..)
+    , Dragon (..)
+    , EvilDragon (..)
+    , FightResult (..)
+    , Reward (..)
+    , Chest (..)
+    , Treasure (..)
+    , XP (..)
+    , Gold (..)
+    , Health (..)
+    , Attack (..)
+    , FirePower (..)
+    , Endurance (..)
     , dragonFight
 
       -- * Hard
@@ -39,6 +51,7 @@ module Lecture2
     , eval
     , constantFolding
     ) where
+import Data.Char (isSpace)
 
 {- | Implement a function that finds a product of all the numbers in
 the list. But implement a lazier version of this function: if you see
@@ -48,7 +61,11 @@ zero, you can stop calculating product and return 0 immediately.
 84
 -}
 lazyProduct :: [Int] -> Int
-lazyProduct = error "TODO"
+lazyProduct list = go list 1
+  where go :: [Int] -> Int -> Int
+        go [] acc      = acc
+        go (0: _) _    = 0
+        go (x: xs) acc = go xs (acc * x)
 
 {- | Implement a function that duplicates every element in the list.
 
@@ -58,7 +75,9 @@ lazyProduct = error "TODO"
 "ccaabb"
 -}
 duplicate :: [a] -> [a]
-duplicate = error "TODO"
+duplicate list = go list []
+  where go [] acc      = acc
+        go (x: xs) acc = x : x : go xs acc
 
 {- | Implement function that takes index and a list and removes the
 element at the given position. Additionally, this function should also
@@ -70,7 +89,13 @@ return the removed element.
 >>> removeAt 10 [1 .. 5]
 (Nothing,[1,2,3,4,5])
 -}
-removeAt = error "TODO"
+removeAt :: Int -> [a] -> (Maybe a, [a])
+removeAt index list = go 0 list []
+  where go :: Int -> [a] -> [a] -> (Maybe a, [a])
+        go _ [] acc                  = (Nothing, acc)
+        go currentIndex (x : xs) acc = if currentIndex == index
+          then (Just x, acc ++ xs)
+          else go (currentIndex + 1) xs (acc ++ [x])
 
 {- | Write a function that takes a list of lists and returns only
 lists of even lengths.
@@ -81,7 +106,8 @@ lists of even lengths.
 ♫ NOTE: Use eta-reduction and function composition (the dot (.) operator)
   in this function.
 -}
-evenLists = error "TODO"
+evenLists :: [[a]] -> [[a]]
+evenLists = filter (even . length)
 
 {- | The @dropSpaces@ function takes a string containing a single word
 or number surrounded by spaces and removes all leading and trailing
@@ -97,7 +123,8 @@ spaces.
 
 🕯 HINT: look into Data.Char and Prelude modules for functions you may use.
 -}
-dropSpaces = error "TODO"
+dropSpaces :: String -> String
+dropSpaces = takeWhile (not . isSpace) . dropWhile isSpace
 
 {- |
 
@@ -155,12 +182,107 @@ You're free to define any helper functions.
 
 -- some help in the beginning ;)
 data Knight = Knight
-    { knightHealth    :: Int
-    , knightAttack    :: Int
-    , knightEndurance :: Int
-    }
+    { knightHealth    :: Health
+    , knightAttack    :: Attack
+    , knightEndurance :: Endurance
+    } deriving (Eq)
 
-dragonFight = error "TODO"
+data Dragon = Dragon
+    { dragonHealth    :: Health
+    , dragonFirePower :: FirePower
+    } deriving (Eq)
+
+data Chest a = Chest
+    { gold      :: Gold
+    , threasure :: Maybe a
+    } deriving (Show, Eq)
+
+data Reward = Reward Gold (Maybe Treasure) XP deriving (Show, Eq)
+
+data Treasure = Gems | Jewels deriving (Show, Eq)
+
+data EvilDragon = Green Dragon Gold
+                | Black Dragon (Chest Treasure)
+                | Red   Dragon (Chest Treasure) deriving (Eq)
+
+data FightResult = KnightWin Reward | KnightDie | KnightRunAway deriving (Show, Eq)
+
+newtype Gold = Gold Int deriving (Show, Eq)
+
+newtype Health = Health { unHealth :: Int } deriving (Show, Eq)
+
+newtype Attack = Attack Int deriving (Show, Eq)
+
+newtype Endurance = Endurance Int deriving (Show, Eq)
+
+newtype FirePower = FirePower Int deriving (Show, Eq)
+
+newtype XP = XP Int deriving (Show, Eq)
+
+dragonFight :: Knight -> EvilDragon -> FightResult
+dragonFight = go 1
+    where go :: Int -> Knight -> EvilDragon -> FightResult
+          go strikeNumber knight dragon
+            | strikeNumber > maxStrikesInRound   = go 1 (damageKnight dragon knight) dragon
+            | getDragonHealth dragon <= 0        = KnightWin $ createReward dragon
+            | getKnightEndurance knight <= 0     = KnightRunAway
+            | getKnightHealth knight <= 0        = KnightDie
+            | otherwise                          = go (strikeNumber + 1) (reduceEndurance knight) (damageDragon knight dragon)
+
+maxStrikesInRound :: Int
+maxStrikesInRound = 10
+
+getDragonHealth :: EvilDragon -> Int
+getDragonHealth = unHealth . dragonHealth  . extractDragon
+
+getKnightHealth :: Knight -> Int
+getKnightHealth (Knight (Health h) _ _) = h
+
+getKnightEndurance :: Knight -> Int
+getKnightEndurance (Knight _ _ (Endurance e)) = e
+
+damageKnight :: EvilDragon -> Knight -> Knight
+damageKnight dragon knight = knight {knightHealth = reduceHealthByFirePower (knightHealth knight) (dragonFirePower (extractDragon dragon))}
+
+damageDragon :: Knight -> EvilDragon -> EvilDragon
+damageDragon knight evilDragon = embedDragon (dragon {dragonHealth = reduceHealthByAttack (dragonHealth dragon) (knightAttack knight)}) evilDragon
+  where dragon = extractDragon evilDragon
+
+reduceEndurance :: Knight -> Knight
+reduceEndurance knight@(Knight _ _ (Endurance e)) = knight {knightEndurance = Endurance (e - 1)}
+
+createReward :: EvilDragon -> Reward
+createReward dragon = let chest = extractChest dragon
+                          gold' = gold chest
+                          threasure' = threasure chest
+                          xp = extractXP dragon
+                      in Reward gold' threasure' xp
+
+extractDragon :: EvilDragon -> Dragon
+extractDragon (Green d _) = d
+extractDragon (Black d _) = d
+extractDragon (Red d _)   = d
+
+embedDragon :: Dragon -> EvilDragon -> EvilDragon
+embedDragon dragon (Green _ gold)  = Green dragon gold
+embedDragon dragon (Black _ chest) = Black dragon chest
+embedDragon dragon (Red _ chest)   = Red dragon chest
+
+extractChest :: EvilDragon -> Chest Treasure
+extractChest (Green _ g) = Chest g Nothing
+extractChest (Black _ c) = c
+extractChest (Red _ c)   = c
+
+extractXP :: EvilDragon -> XP
+extractXP (Green _ _) = XP 250
+extractXP (Black _ _) = XP 150
+extractXP (Red _ _)   = XP 100
+
+reduceHealthByFirePower :: Health -> FirePower -> Health
+reduceHealthByFirePower (Health h) (FirePower fp) = Health (h - fp)
+
+reduceHealthByAttack :: Health -> Attack -> Health
+reduceHealthByAttack (Health h) (Attack a) = Health (h - a)
 
 ----------------------------------------------------------------------------
 -- Challenges
@@ -181,7 +303,11 @@ False
 True
 -}
 isIncreasing :: [Int] -> Bool
-isIncreasing = error "TODO"
+isIncreasing [] = True
+isIncreasing (first : rest) = go first rest
+  where go :: Int -> [Int] -> Bool
+        go _ []       = True
+        go n (x : xs) = (n <= x) && go x xs
 
 {- | Implement a function that takes two lists, sorted in the
 increasing order, and merges them into new list, also sorted in the
@@ -194,7 +320,11 @@ verify that.
 [1,2,3,4,7]
 -}
 merge :: [Int] -> [Int] -> [Int]
-merge = error "TODO"
+merge [] ys           = ys
+merge xs []           = xs
+merge (x: xs) (y: ys) = if x < y
+                        then x : merge xs (y: ys)
+                        else y : merge (x : xs) ys
 
 {- | Implement the "Merge Sort" algorithm in Haskell. The @mergeSort@
 function takes a list of numbers and returns a new list containing the
@@ -211,8 +341,18 @@ The algorithm of merge sort is the following:
 [1,2,3]
 -}
 mergeSort :: [Int] -> [Int]
-mergeSort = error "TODO"
+mergeSort = go . inverseConcat
+  where
+    go :: [[Int]] -> [Int]
+    go []               = []
+    go [xs]             = xs
+    go (xs : ys : rest) = go (merge xs ys : rest)
 
+inverseConcat :: [Int] -> [[Int]]
+inverseConcat = go
+  where go :: [Int] -> [[Int]]
+        go []       = []
+        go (x : xs) = [x] : go xs
 
 {- | Haskell is famous for being a superb language for implementing
 compilers and interpeters to other programming languages. In the next
@@ -264,7 +404,14 @@ data EvalError
 It returns either a successful evaluation result or an error.
 -}
 eval :: Variables -> Expr -> Either EvalError Int
-eval = error "TODO"
+eval _ (Lit value)    = Right value
+eval vars (Var var)   = case lookup var vars of
+                          Just value -> Right value
+                          Nothing    -> Left $ VariableNotFound var
+eval vars (Add e1 e2) = case (eval vars e1, eval vars e2) of
+                          (Right value1, Right value2) -> Right $ value1 + value2
+                          (Left e, _)                  -> Left e
+                          (_, Left e)                  -> Left e
 
 {- | Compilers also perform optimizations! One of the most common
 optimizations is "Constant Folding". It performs arithmetic operations
@@ -287,5 +434,22 @@ x + 45 + y
 Write a function that takes and expression and performs "Constant
 Folding" optimization on the given expression.
 -}
+
+-- 😱 😱 😱
 constantFolding :: Expr -> Expr
-constantFolding = error "TODO"
+constantFolding lit@(Lit _)              = lit
+constantFolding val@(Var _)              = val
+constantFolding (Add (Lit v1) (Lit v2))  = Lit $ v1 + v2
+constantFolding (Add (Var v) (Lit l))    = constantFolding (Add (Lit l) (Var v))
+constantFolding (Add (Lit l) (Var v))    = if l > 0 then Add (Lit l) (Var v) else Var v
+constantFolding vv@(Add (Var _) (Var _)) = vv
+constantFolding (Add (Lit _) e2) = constantFolding e2
+constantFolding (Add e1 (Lit _)) = constantFolding e1
+constantFolding (Add (Add (Var v1) (Lit l1)) (Add (Var v2) (Lit l2))) = constantFolding (Add (Add (Lit l1) (Var v1)) (Add (Lit l2) (Var v2)))
+constantFolding expr@(Add (Add (Lit _) (Var v)) (Add (Lit _) (Var v1))) = Add (Lit (foldLit expr 0)) (constantFolding (Add (Var v) (Var v1)))
+constantFolding expr = Add (Lit (foldLit expr 0)) expr
+
+foldLit :: Expr -> Int -> Int
+foldLit (Lit value) litAcc = litAcc + value
+foldLit (Var _) litAcc     = litAcc
+foldLit (Add e1 e2) litAcc = foldLit e1 litAcc + foldLit e2 litAcc
