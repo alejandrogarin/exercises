@@ -34,7 +34,6 @@ module Lecture3
     , apply
     ) where
 
-import Data.Semigroup
 -- $setup
 -- >>> import Data.Semigroup
 
@@ -49,7 +48,7 @@ data Weekday
     | Friday
     | Saturday
     | Sunday
-    deriving (Show, Eq, Enum, Bounded)
+    deriving (Show, Eq, Enum, Bounded, Ord)
 
 {- | Write a function that will display only the first three letters
 of a weekday.
@@ -94,7 +93,7 @@ weekday to the second.
 5
 -}
 daysTo :: Weekday -> Weekday -> Int
-daysTo from to = if fromEnum from > fromEnum to
+daysTo from to = if from > to
   then (maxwd - fromEnum from) + fromEnum to + 1
   else fromEnum to - fromEnum from
   where maxwd = fromEnum (maxBound :: Weekday)
@@ -132,12 +131,10 @@ data Reward = Reward
     } deriving (Show, Eq)
 
 instance Semigroup Reward where
-  (<>) r1 r2 = Reward (Gold (gold r1 + gold r2)) (rewardSpecial r1 || rewardSpecial r2)
-    where gold = unGold . rewardGold
-
+  (<>) r1 r2 = Reward (rewardGold r1 <> rewardGold r2) (rewardSpecial r1 || rewardSpecial r2)
 
 instance Monoid Reward where
-  mempty = Reward (Gold 0) False
+  mempty = Reward mempty False
 
 
 {- | 'List1' is a list that contains at least one element.
@@ -171,9 +168,8 @@ monsters, you should get a combined treasure and not just the first
 -}
 instance Semigroup a => Semigroup (Treasure a) where
   (<>) (SomeTreasure v) (SomeTreasure v1) = SomeTreasure (v <> v1)
-  (<>) (SomeTreasure v) NoTreasure        = SomeTreasure v
-  (<>) NoTreasure (SomeTreasure v)        = SomeTreasure v
-  (<>) NoTreasure NoTreasure              = NoTreasure
+  (<>) t NoTreasure                       = t
+  (<>) NoTreasure t                       = t
 
 instance Semigroup a => Monoid (Treasure a) where
   mempty = NoTreasure
@@ -196,13 +192,13 @@ together only different elements.
 Product {getProduct = 6}
 
 -}
-appendDiff3 :: (AppendDiffeable a) => a -> a -> a -> a
-appendDiff3 = ad3
-
-class (Semigroup a) => AppendDiffeable a where
-  ad3 :: a -> a -> a -> a
-
--- Q1: adding a typeclass like this makes sense?
+appendDiff3 :: (Eq a, Semigroup a) => a -> a -> a -> a
+appendDiff3 a b c
+  | a == b && b == c = a
+  | a /= b && b == c = a <> b
+  | a /= b && a == c = a <> b
+  | a == b && b /= c = b <> c
+  | otherwise = a <> b <> c
 
 {-
 
@@ -238,10 +234,17 @@ instance Foldable List1 where
   foldr :: (a -> b -> b) -> b -> List1 a -> b
   foldr f i (List1 x xs) = foldr f i (x: xs)
 
+  foldMap :: Monoid m => (a -> m) -> List1 a -> m
+  foldMap f (List1 x xs) = f x <> foldMap f xs
+
 instance Foldable Treasure where
   foldr :: (a -> b -> b) -> b -> Treasure a -> b
   foldr f i (SomeTreasure a) = f a i
   foldr _ i NoTreasure       = i
+
+  foldMap :: Monoid m => (a -> m) -> Treasure a -> m
+  foldMap f (SomeTreasure a) = f a
+  foldMap _ NoTreasure       = mempty
 
 {-
 
@@ -280,5 +283,5 @@ Just [8,9,10]
 [8,20,3]
 
 -}
-apply :: Functor f => a -> f (a -> a) -> f a
+apply :: Functor f => a -> f (a -> b) -> f b
 apply a = fmap (\f -> f a)
