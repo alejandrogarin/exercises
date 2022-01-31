@@ -94,7 +94,9 @@ return the removed element.
 (Nothing,[1,2,3,4,5])
 -}
 removeAt :: Int -> [a] -> (Maybe a, [a])
-removeAt index list = go 0 list []
+removeAt index list
+  | index < 0 = (Nothing, list)
+  | otherwise = go 0 list []
   where go :: Int -> [a] -> [a] -> (Maybe a, [a])
         go _ [] acc                  = (Nothing, acc)
         go currentIndex (x : xs) acc = if currentIndex == index
@@ -128,7 +130,7 @@ spaces.
 🕯 HINT: look into Data.Char and Prelude modules for functions you may use.
 -}
 dropSpaces :: String -> String
-dropSpaces = filter (not . isSpace)
+dropSpaces = takeWhile (not . isSpace) . dropWhile isSpace
 
 {- |
 
