@@ -81,6 +81,7 @@ errors. You can just ignore invalid rows.
 Exercises for Lecture 4 also contain tests and you can run them as usual.
 -}
 {-# LANGUAGE StrictData #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Lecture4
     ( -- * Main running function
@@ -215,12 +216,17 @@ instance Semigroup Stats where
                 , statsTotalSum       = statsTotalSum s1 <> statsTotalSum s2
                 , statsAbsoluteMax    = statsAbsoluteMax s1 <> statsAbsoluteMax s2
                 , statsAbsoluteMin    = statsAbsoluteMin s1 <> statsAbsoluteMin s2
-                , statsSellMax        = statsSellMax s1 <> statsSellMax s2
-                , statsSellMin        = statsSellMin s1 <> statsSellMin s2
-                , statsBuyMax         = statsBuyMax s1 <> statsBuyMax s2
-                , statsBuyMin         = statsBuyMin s1 <> statsBuyMin s2
+                , statsSellMax        = combineMaybes (statsSellMax s1) (statsSellMax s2)
+                , statsSellMin        = combineMaybes (statsSellMin s1) (statsSellMin s2)
+                , statsBuyMax         = combineMaybes (statsBuyMax s1) (statsBuyMax s2)
+                , statsBuyMin         = combineMaybes (statsBuyMin s1) (statsBuyMin s2)
                 , statsLongest        = statsLongest s1 <> statsLongest s2
                 }
+
+combineMaybes  :: (Semigroup a) => Maybe a -> Maybe a -> Maybe a
+combineMaybes (Just !m1) (Just !m2) = Just (m1 <> m2)
+combineMaybes m Nothing = m
+combineMaybes Nothing m = m
 
 {-
 The reason for having the 'Stats' data type is to be able to convert
