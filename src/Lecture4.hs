@@ -103,11 +103,12 @@ module Lecture4
 
 import Data.List.NonEmpty (NonEmpty (..), nonEmpty)
 import Data.Maybe (listToMaybe, mapMaybe)
-import Data.Semigroup (Max (..), Min (..), Semigroup (..), Sum (..))
+import Data.Semigroup (Max (..), Min (..), Sum (..))
 import Lecture2 (dropSpaces)
 import System.Environment (getArgs)
 import Text.Read (readMaybe)
 import Control.Monad
+import Data.Foldable
 
 {- In this exercise, instead of writing the entire program from
 scratch, you're offered to complete the missing parts.
@@ -279,7 +280,10 @@ implement the next task.
 -}
 
 combineRows :: NonEmpty Row -> Stats
-combineRows = sconcat . fmap rowToStats
+combineRows = combineStats . fmap rowToStats
+
+combineStats :: NonEmpty Stats -> Stats
+combineStats (x :| xs) = foldl' (<>) x xs
 
 {-
 After we've calculated stats for all rows, we can then pretty-print
