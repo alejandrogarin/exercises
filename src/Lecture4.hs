@@ -101,7 +101,7 @@ module Lecture4
     , printProductStats
     ) where
 
-import Data.List.NonEmpty (NonEmpty (..))
+import Data.List.NonEmpty (NonEmpty (..), nonEmpty)
 import Data.Maybe (listToMaybe, mapMaybe)
 import Data.Semigroup (Max (..), Min (..), Semigroup (..), Sum (..))
 import Lecture2 (dropSpaces)
@@ -140,33 +140,25 @@ errors. We will simply return an optional result here.
 -}
 
 parseRow :: String -> Maybe Row
-parseRow = readRow . splitCSVLine
+parseRow = readRow . split ','
    where readRow :: [String] -> Maybe Row
-         readRow cols
-            | length cols /= 3 = Nothing
-            | otherwise = Row <$> readProduct c1 <*> readTradeType c2 <*> readInt c3
-               where c1 = head cols
-                     c2 = cols !! 1
-                     c3 = last cols
+         readRow cols = case cols of
+             [c1, c2, c3] -> Row <$> readProduct c1 <*> readTradeType c2 <*> readInt c3
+             _ -> Nothing
          readProduct :: String -> Maybe String
          readProduct p
             | dropSpaces p == "" = Nothing
             | otherwise = Just p
          readTradeType :: String -> Maybe TradeType
-         readTradeType trade = case dropSpaces trade of
-            "Sell" -> Just Sell
-            "Buy"  -> Just Buy
-            _      -> Nothing
+         readTradeType = readMaybe
          readInt :: String -> Maybe Int
          readInt int = readMaybe int >>= positiveOrNothing
          positiveOrNothing :: Int -> Maybe Int
          positiveOrNothing x = if x < 0 then Nothing else Just x
 
-splitCSVLine :: String -> [String]
-splitCSVLine string = go string ""
-   where go :: String -> String -> [String]
-         go [] acc      = [acc]
-         go (x: xs) acc = if x == ',' then acc : go xs "" else go xs (acc ++ [x])
+split :: Eq a => a -> [a] -> [[a]]
+split _ [] = []
+split d s = x : split d (drop 1 y) where (x,y) = span (/= d) s
 
 {-
 We have almost all we need to calculate final stats in a simple and
@@ -189,8 +181,7 @@ If both strings have the same length, return the first one.
 -}
 instance Semigroup MaxLen where
    (<>) (MaxLen str1) (MaxLen str2)
-      | length str1 == length str2 = MaxLen str1
-      | length str1 > length str2 = MaxLen str1
+      | length str1 >= length str2 = MaxLen str1
       | otherwise = MaxLen str2
 
 {-
@@ -245,7 +236,7 @@ row in the file.
 
 rowToStats :: Row -> Stats
 rowToStats row = case rowTradeType row of
-   Buy -> template { statsTotalSum       = fmap (*(-1)) statsTotalSum template
+   Buy -> template { statsTotalSum       = negate (statsTotalSum template)
                    , statsBuyMax         = Just $ Max (rowCost row)
                    , statsBuyMin         = Just $ Min (rowCost row)
                    }
@@ -352,14 +343,10 @@ the file doesn't have any products.
 -}
 
 calculateStats :: String -> String
-calculateStats = statsOrError . rowsToNonEmpty . mapMaybe parseRow . lines
+calculateStats = statsOrError . nonEmpty . mapMaybe parseRow . lines
 
 statsOrError :: Maybe (NonEmpty Row) -> String
 statsOrError = maybe "the file doesn't have any products" (displayStats . combineRows)
-
-rowsToNonEmpty :: [Row] -> Maybe (NonEmpty Row)
-rowsToNonEmpty []      = Nothing
-rowsToNonEmpty (x: xs) = Just $ x :| xs
 
 {- The only thing left is to write a function with side-effects that
 takes a path to a file, reads its content, calculates stats and prints
